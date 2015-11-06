@@ -1,1 +1,8 @@
+# Node/NPM
 node_modules/
+
+# IDEA project files & folders
+*.iml
+*.ipr
+*.iws
+.idea/
