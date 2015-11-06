@@ -1,7 +1,7 @@
-var assert = require("assert")
-  , fs = require("fs")
-  , path = require("path")
-  , tests = {}
+var assert = require("assert"),
+  fs = require("fs"),
+  path = require("path"),
+  tests = {};
 
 // Find all test programs in the CommonJS test suite
 walkDirSync("commonjs/tests/modules", function (fullPath, dir, file) {
@@ -20,10 +20,10 @@ function addProgramTest(pathToProgram) {
 }
 
 function runProgramWithJjs(pathToProgram, next) {
-  var cmd = "jjs tests/jjs-runner.js -- \"" + pathToProgram + "\"";
+  var cmd = "jjs tests/program-runner.js -- \"" + pathToProgram + "\"";
   var opts = {
-    printStdout: true
-  , printStderr: true
+    printStdout: true,
+    printStderr: true
   };
   // Apparently if the runner throws an exception jake will stop/fail, which is fine.
   jake.exec(cmd, opts, next);

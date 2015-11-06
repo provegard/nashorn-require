@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es5",
+        "noImplicitAny": true,
+        "outDir": "dist",
+        "rootDir": ".",
+        "sourceMap": false,
+        "noLib": true
+    },
+    "files": [
+        "src/java.d.ts",
+        "src/nashorn-require.ts",
+        "node_modules/typescript/lib/lib.core.d.ts"
+    ]
+}

@@ -1,7 +1,7 @@
 {
   "name": "nashorn-require",
   "version": "1.0.0",
-  "description": "A Nashorn implementation of CommonJS Modules/1.1",
+  "description": "A Nashorn implementation of CommonJS Modules/1.1.1",
   "main": "src/nashorn-require.js",
   "directories": {
     "test": "test"
@@ -26,6 +26,7 @@
   "homepage": "https://github.com/provegard/nashorn-require#readme",
   "devDependencies": {
     "jake": "^8.0.12",
-    "jake-jshint": "0.0.4"
+    "jake-jshint": "0.0.4",
+    "typescript": "^1.6.2"
   }
 }
