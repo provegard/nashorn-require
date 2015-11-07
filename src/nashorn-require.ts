@@ -25,6 +25,9 @@ declare var print: (_: string) => void;
 declare var load: (_: {name: string, script: string}) => any;
 
 ((global: any) => {
+  var LineSeparator = java.lang.System.getProperty("line.separator");
+
+  var moduleCache: { [id: string]: Module; } = {};
   var require = global.require = createRequire();
   // ----------------------
 
@@ -33,14 +36,24 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   class Module {
-    constructor(id: ModuleId) {
+    constructor(id: ModuleId, location: ModuleLocation) {
       this.id = id.id;
-      this.exports = new ModuleExports();
+      this.location = location;
+      this._exports = new ModuleExports();
     };
 
-    id: string;
-    exports: ModuleExports;
+    private _exports: ModuleExports;
+    id: string; //TODO: Not deletable
+    get exports(): ModuleExports {
+      return this._exports; //TODO: Make sure it's the correct 'this' reference
+    }
+    set exports(exp: ModuleExports) {
+      //debugLog(`Setting exports for ${this.id}`);
+      this._exports = exp; //TODO: Make sure it's the correct 'this' reference
+      //moduleCache[this.id] = exp;
+    }
 
+    //TODO: Don't expose to module code!
     location: ModuleLocation;
   }
 
@@ -63,6 +76,10 @@ declare var load: (_: {name: string, script: string}) => any;
     isAbsolutePath(): boolean {
       // Handle both Unix and Windows path, /foo/bar.js and c:\foo\bar.js
       return this.id[0] === "/" || this.id[1] === ":";
+    }
+
+    toString(): string {
+      return this.id;
     }
   }
 
@@ -111,7 +128,8 @@ declare var load: (_: {name: string, script: string}) => any;
     }
 
     resolve(id: ModuleId) {
-      return new FileSystemBasedModuleLocation(newFile(this.file, id.id));
+      var parent = this.file.isDirectory() ? this.file : this.file.getParentFile();
+      return new FileSystemBasedModuleLocation(newFile(parent, id.id));
     }
 
     exists() {
@@ -136,13 +154,15 @@ declare var load: (_: {name: string, script: string}) => any;
       var tempLocation = new FileSystemBasedModuleLocation(newFile(require.root));
       action = (mid) => tempLocation.resolve(mid);
     }
-    for (var i: number; i < require.extensions.length; i++) {
+    for (var i: number = 0; i < require.extensions.length; i++) {
       var ext = require.extensions[i];
       var newModuleId = new ModuleId(ensureExtension(id.id, ext));
       var location = action(newModuleId);
-      if (location !== null) return location;
+      if (!location) continue;
+      debugLog(`Considering location: ${location}`);
+      if (location.exists()) return location;
     }
-    throw new RequireError("Failed to locate module: " + id.id);
+    throw new RequireError(`Failed to locate module: ${id}`);
   }
 
   function doRequire(id: string, parent?: Module): ModuleExports {
@@ -154,8 +174,8 @@ declare var load: (_: {name: string, script: string}) => any;
   function createRequire(): Require {
     var require = <Require>((id: string) => doRequire(id));
     require.root = java.lang.System.getProperty("user.dir");
-    require.debug = true;
-    require.extensions = ["", ".js"];
+    require.debug = false;
+    require.extensions = [".js", ""];
     return require;
   }
 
@@ -190,9 +210,11 @@ declare var load: (_: {name: string, script: string}) => any;
       reader: java.io.Reader;
     try {
       reader = new java.io.BufferedReader(new java.io.InputStreamReader(stream));
-      var line: string = null;
+      var line: string;
       while ((line = reader.readLine()) !== null) {
-        buf += line + "\n";
+        // Make sure to add a line separator (stripped by readLine), so that line numbers are preserved and line
+        // comments won't "hide" the remainder of the file.
+        buf += line + LineSeparator;
       }
     } finally {
       if (reader) reader.close();
@@ -201,15 +223,28 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function loadModule(id: ModuleId, location: ModuleLocation): ModuleExports {
+    // Check the cache first. Use the location name since that is suppose to be stable regardless of how the module
+    // was requested.
+    var cachedModule = moduleCache[location.name];
+    if (cachedModule) {
+      debugLog(`Using cached module for ${id}`);
+      return cachedModule.exports;
+    }
+
+    debugLog(`Loading module '${id}' from ${location}`);
     var body = readLocation(location);
     //TODO: , __filename, __dirname
-    var wrappedBody = 'var moduleFunction = function (exports, module, require) {' + body + '\n}; moduleFunction';
+    var wrappedBody = `var moduleFunction = function (exports, module, require) {${body}\n}; moduleFunction`;
     var func = load({
       name: location.name,
       script: wrappedBody
     });
-    var module = new Module(id);
+    var module = new Module(id, location);
     var requireFn = <RequireFunction>((id: string) => doRequire(id, module));
+
+    // Cache before loading so that cyclic dependencies won't be a problem.
+    moduleCache[location.name] = module;
+
     //var moduleFile = newFile(descriptor.path);
     //var dirName = moduleFile.getParent();
     //var fileName = moduleFile.getName();

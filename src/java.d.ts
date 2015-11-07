@@ -34,7 +34,10 @@ declare namespace java {
       getCanonicalPath(): string
       exists(): boolean
       isAbsolute(): boolean
+      isDirectory(): boolean
+      isFile(): boolean
       getParent(): String
+      getParentFile(): File
       getName(): String
     }
 
