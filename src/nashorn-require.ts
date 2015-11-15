@@ -37,13 +37,16 @@ declare var load: (_: {name: string, script: string}) => any;
 
   class Module {
     constructor(id: ModuleId, location: ModuleLocation) {
-      this.id = id.id;
+      // A module should be requirable via 'id', which means we cannot use the original identifier, which may be
+      // relative. By using the name of the location, which is an absolute path in the file system case, we get a stable
+      // identifier. The only downside is that it's technically not a "top-level id", which the spec talks about.
+      this.id = location.name;
       this.location = location;
       this._exports = new ModuleExports();
     };
 
     private _exports: ModuleExports;
-    id: string; //TODO: Not deletable
+    id: string; //TODO: Not deletable, read-only
     get exports(): ModuleExports {
       return this._exports; //TODO: Make sure it's the correct 'this' reference
     }
@@ -115,7 +118,7 @@ declare var load: (_: {name: string, script: string}) => any;
     name: string
   }
   class FileSystemBasedModuleLocation implements ModuleLocation {
-    file: java.io.File;
+    private file: java.io.File;
     name: string;
 
     constructor(file: java.io.File) {

@@ -30,7 +30,7 @@ task("lint", [], function () {
 
 testTask("nashorn-require", ["build", "lint"], function () {
   var fileList = [
-    "tests/*"
+    "tests/*.js"
   ];
   this.testFiles.include(fileList);
   this.testFiles.exclude("tests/program-runner.js");

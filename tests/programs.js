@@ -3,17 +3,20 @@ var assert = require("assert"),
   path = require("path"),
   tests = {};
 
-// Find all test programs in the CommonJS test suite
-walkDirSync("commonjs/tests/modules", function (fullPath, dir, file) {
-  if (file !== "program.js") return;
-  addProgramTest(fullPath);
+var programDirs = ["commonjs/tests/modules", "tests/commonjs-missing"];
+
+programDirs.forEach(function (programDir) {
+  walkDirSync(programDir, function (fullPath, dir, file) {
+    if (file !== "program.js") return;
+    addProgramTest(fullPath);
+  });
 });
 
 module.exports = tests;
 
 function addProgramTest(pathToProgram) {
   // Note: Cannot use colon in test name! https://github.com/jakejs/jake/issues/252
-  var testName = "CommonJS program - " + path.basename(path.dirname(pathToProgram));
+  var testName = "Test program - " + path.basename(path.dirname(pathToProgram));
   tests[testName] = function (next) {
     runProgramWithJjs(pathToProgram, next);
   };
