@@ -3,7 +3,7 @@ var assert = require("assert"),
   path = require("path"),
   tests = {};
 
-var programDirs = ["commonjs/tests/modules", "tests/commonjs-missing"];
+var programDirs = ["commonjs/tests/modules", "tests/commonjs-missing", "tests/commonjs-optional", "tests/nodejs"];
 
 programDirs.forEach(function (programDir) {
   walkDirSync(programDir, function (fullPath, dir, file) {

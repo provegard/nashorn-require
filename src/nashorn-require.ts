@@ -27,7 +27,7 @@ declare var load: (_: {name: string, script: string}) => any;
 ((global: any) => {
   var LineSeparator = java.lang.System.getProperty("line.separator");
 
-  var moduleCache: { [id: string]: Module; } = {};
+  var moduleCache: { [id: string]: ModuleContainer; } = {};
   var require = global.require = createRequire();
   // ----------------------
 
@@ -35,34 +35,48 @@ declare var load: (_: {name: string, script: string}) => any;
     (id: string): ModuleExports
   }
 
-  class Module {
-    constructor(id: ModuleId, location: ModuleLocation) {
-      // A module should be requirable via 'id', which means we cannot use the original identifier, which may be
-      // relative. By using the name of the location, which is an absolute path in the file system case, we get a stable
-      // identifier. The only downside is that it's technically not a "top-level id", which the spec talks about.
-      this.id = location.name;
+  class ModuleContainer {
+    constructor(location: ModuleLocation) {
       this.location = location;
-      this._exports = new ModuleExports();
+      this.exports = new ModuleExports();
     };
 
-    private _exports: ModuleExports;
-    id: string; //TODO: Not deletable, read-only
-    get exports(): ModuleExports {
-      return this._exports; //TODO: Make sure it's the correct 'this' reference
-    }
-    set exports(exp: ModuleExports) {
-      //debugLog(`Setting exports for ${this.id}`);
-      this._exports = exp; //TODO: Make sure it's the correct 'this' reference
-      //moduleCache[this.id] = exp;
-    }
-
-    //TODO: Don't expose to module code!
+    exports: ModuleExports;
     location: ModuleLocation;
   }
 
-  class ModuleExports {
+  /**
+   * ExposedModule represents the module API as seen by the required module code. This means that it only contain the
+   * minimum required properties to fulfill the needs. For example, it doesn't expose a `location` property like
+   * `ModuleContainer` does.
+   */
+  class ExposedModule {
+    constructor(container: ModuleContainer) {
 
+      // Note: The properties are created using Object.defineProperty because they need access to the container
+      // object, but we don't want the container object to be a part of the API exposed to the required module.
+
+      // A module should be requirable via 'id', which means we cannot use the original identifier, which may be
+      // relative. By using the name of the location, which is an absolute path in the file system case, we get a stable
+      // identifier. The only downside is that it's technically not a "top-level id", which the spec talks about.
+      Object.defineProperty(this, "id", {
+        get: () => container.location.name
+      });
+
+      Object.defineProperty(this, "exports", {
+        get: () => container.exports,
+        set: (value) => container.exports = value
+      });
+    }
+
+    /**
+     * Because `exports` is defined using `Object.defineProperty`, we have to use an indexer to access it within
+     * this TS file.
+     */
+    [index: string]: any;
   }
+
+  class ModuleExports {}
 
   class ModuleId {
     id: string;
@@ -144,7 +158,7 @@ declare var load: (_: {name: string, script: string}) => any;
     }
   }
 
-  function locateModule(id: ModuleId, parent?: Module): ModuleLocation {
+  function locateModule(id: ModuleId, parent?: ModuleContainer): ModuleLocation {
     var action: (mid: ModuleId) => ModuleLocation;
     if (id.isAbsolutePath()) {
       // For an absolute path, just return a file stream provided that the file exists.
@@ -168,7 +182,7 @@ declare var load: (_: {name: string, script: string}) => any;
     throw new RequireError(`Failed to locate module: ${id}`);
   }
 
-  function doRequire(id: string, parent?: Module): ModuleExports {
+  function doRequire(id: string, parent?: ModuleContainer): ModuleExports {
     var moduleId = new ModuleId(id);
     var location = locateModule(moduleId, parent);
     return loadModule(moduleId, location);
@@ -242,7 +256,7 @@ declare var load: (_: {name: string, script: string}) => any;
       name: location.name,
       script: wrappedBody
     });
-    var module = new Module(id, location);
+    var module = new ModuleContainer(location);
     var requireFn = <RequireFunction>((id: string) => doRequire(id, module));
 
     // Cache before loading so that cyclic dependencies won't be a problem.
@@ -251,8 +265,8 @@ declare var load: (_: {name: string, script: string}) => any;
     //var moduleFile = newFile(descriptor.path);
     //var dirName = moduleFile.getParent();
     //var fileName = moduleFile.getName();
-    //TODO: expose public part of module only!!
-    func.apply(module, [module.exports, module, requireFn]);
+    var exposed = new ExposedModule(module);
+    func.apply(module, [exposed["exports"], exposed, requireFn]);
     return module.exports;
   }
 
