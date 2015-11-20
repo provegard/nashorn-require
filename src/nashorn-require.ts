@@ -69,6 +69,10 @@ declare var load: (_: {name: string, script: string}) => any;
       });
     }
 
+    get main() {
+      return this;
+    }
+
     /**
      * Because `exports` is defined using `Object.defineProperty`, we have to use an indexer to access it within
      * this TS file.

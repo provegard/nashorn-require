@@ -41,21 +41,29 @@ function withRoot(root, closure) {
 
 function withFailDetectingPrint(closure) {
   var oldPrint = this.print;
-  this.print = createPrintWithFailureDetection(oldPrint);
+  var replacementPrint = createPrintWithFailureDetection(oldPrint);
+  this.print = replacementPrint;
   try {
     closure();
   } finally {
     this.print = oldPrint;
   }
+  if (replacementPrint.failures.length) {
+    throw new Error("There were failures!")
+  }
 }
 
 function createPrintWithFailureDetection(oldPrint) {
-  return function () {
+  var printFun = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var msg = args.join(" ");
     if (msg.toString().toLowerCase().indexOf("fail") >= 0) {
-      throw new Error(msg);
+      // Collect failures - to be acted upon after the test run for the program is finished.
+      // This means that all failures are printed, *then* there will be a stopping failure.
+      printFun.failures.push(msg);
     }
     oldPrint(msg);
   };
+  printFun.failures = [];
+  return printFun;
 }
