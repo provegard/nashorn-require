@@ -1,3 +1,4 @@
+var ansi;
 
 var currentDir = new java.io.File(__DIR__);
 var nashornRequireFile = new java.io.File(currentDir, "../dist/nashorn-require.js");
@@ -12,6 +13,11 @@ try {
   // Load require, then require the test program
   //print("--> Loading " + nashornRequireFile);
   load(nashornRequireFile.toString());
+
+  // Load color support for printing messages
+  withRoot(currentDir, function () {
+    ansi = require("./ansi");
+  });
 
   print("TEST FILE: " + programFile);
   withFailDetectingPrint(function () {
@@ -62,6 +68,8 @@ function createPrintWithFailureDetection(oldPrint) {
       // This means that all failures are printed, *then* there will be a stopping failure.
       printFun.failures.push(msg);
     }
+    // Replace occurrences of uppercase PASS/FAIL with colored versions
+    msg = msg.replace(/PASS/g, ansi.brightGreen("PASS")).replace(/FAIL/g, ansi.brightRed("FAIL"));
     oldPrint(msg);
   };
   printFun.failures = [];
