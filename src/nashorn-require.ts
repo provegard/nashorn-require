@@ -202,15 +202,10 @@ declare var load: (_: {name: string, script: string}) => any;
       // Resolve the id against the location of the parent module
       actions.push(mid => parent.location.resolve(mid));
     } else {
-      // Top-level ID, resolve against root (TODO: multiple roots)
-      //var root = options.paths[options.paths.length - 1]; //TODO
-      //var tempLocation = new FileSystemBasedModuleLocation(newFile(root));
-      //action = (mid) => tempLocation.resolve(mid);
-      debugLog("Paths: " + options.paths.join(", "));
+      // Top-level ID, resolve against root
       options.paths.forEach(root => {
         var tempLocation = new FileSystemBasedModuleLocation(newFile(root));
         actions.push(mid => tempLocation.resolve(mid));
-        //var maybeModuleLocation = new FileSystemBasedModuleLocation(newFile(root)).resolve(mid);
       });
     }
     for (var i: number = 0; i < options.extensions.length; i++) {
@@ -231,14 +226,6 @@ declare var load: (_: {name: string, script: string}) => any;
     var location = locateModule(moduleId, parent);
     return loadModule(moduleId, location);
   }
-
-  //function createRequire(): Require {
-  //  var require = <Require>((id: string) => doRequire(id));
-  //  require.root = java.lang.System.getProperty("user.dir");
-  //  require.debug = false;
-  //  require.extensions = [".js", ""];
-  //  return require;
-  //}
 
   // endsWith - also ES6
   function endsWith(str: string, suffix: string): boolean {
