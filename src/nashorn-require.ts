@@ -28,11 +28,44 @@ declare var load: (_: {name: string, script: string}) => any;
   var LineSeparator = java.lang.System.getProperty("line.separator");
 
   var moduleCache: { [id: string]: ModuleContainer; } = {};
-  var require = global.require = createRequire();
+  var options: RequireOptions;
+
+  /**
+   * Initialize nashorn-require. After this function returns, there is a global 'require' function together with
+   * global 'module' and 'exports' objects. The main reason for having manual initialization is that it makes it
+   * possible to determine which file is the main file/program. Consider Node as a comparison - when you run a JS
+   * file with Node, that file is the main file.
+   *
+   * @param opts options for configuring nashorn-require
+   */
+  global.initRequire = function (opts: PublicRequireOptions) {
+    global.initRequire = () => { throw new Error("initRequire cannot be called twice"); };
+    init(opts);
+  };
   // ----------------------
 
   interface RequireFunction {
     (id: string): ModuleExports
+
+    /**
+     * TODO: doc
+     */
+    main: ExposedModule;
+
+    paths: string[];
+  }
+
+  interface RequireOptions {
+    //root: string;
+    paths: string[];
+    extensions: string[];
+    debug: boolean;
+  }
+
+  interface PublicRequireOptions {
+    mainFile: string;
+    extensions: string[];
+    debug: boolean;
   }
 
   class ModuleContainer {
@@ -63,14 +96,12 @@ declare var load: (_: {name: string, script: string}) => any;
         get: () => container.location.name
       });
 
+      // The exports property is has a setter so that a module can assign to module.exports, e.g. to let the exported
+      // API be a function.
       Object.defineProperty(this, "exports", {
         get: () => container.exports,
         set: (value) => container.exports = value
       });
-    }
-
-    get main() {
-      return this;
     }
 
     /**
@@ -163,25 +194,34 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function locateModule(id: ModuleId, parent?: ModuleContainer): ModuleLocation {
-    var action: (mid: ModuleId) => ModuleLocation;
+    var actions: ((mid: ModuleId) => ModuleLocation)[] = [];
     if (id.isAbsolutePath()) {
       // For an absolute path, just return a file stream provided that the file exists.
-      action = (mid) => new FileSystemBasedModuleLocation(newFile(mid.id));
+      actions.push(mid => new FileSystemBasedModuleLocation(newFile(mid.id)));
     } else if (id.isRelative() && parent) {
-      // Resolve the id against the id of the parent module
-      action = (mid) => parent.location.resolve(mid);
+      // Resolve the id against the location of the parent module
+      actions.push(mid => parent.location.resolve(mid));
     } else {
       // Top-level ID, resolve against root (TODO: multiple roots)
-      var tempLocation = new FileSystemBasedModuleLocation(newFile(require.root));
-      action = (mid) => tempLocation.resolve(mid);
+      //var root = options.paths[options.paths.length - 1]; //TODO
+      //var tempLocation = new FileSystemBasedModuleLocation(newFile(root));
+      //action = (mid) => tempLocation.resolve(mid);
+      debugLog("Paths: " + options.paths.join(", "));
+      options.paths.forEach(root => {
+        var tempLocation = new FileSystemBasedModuleLocation(newFile(root));
+        actions.push(mid => tempLocation.resolve(mid));
+        //var maybeModuleLocation = new FileSystemBasedModuleLocation(newFile(root)).resolve(mid);
+      });
     }
-    for (var i: number = 0; i < require.extensions.length; i++) {
-      var ext = require.extensions[i];
+    for (var i: number = 0; i < options.extensions.length; i++) {
+      var ext = options.extensions[i];
       var newModuleId = new ModuleId(ensureExtension(id.id, ext));
-      var location = action(newModuleId);
-      if (!location) continue;
-      debugLog(`Considering location: ${location}`);
-      if (location.exists()) return location;
+      for (var j: number = 0; j < actions.length; j++) {
+        var location = actions[j](newModuleId);
+        if (!location) continue;
+        debugLog(`Considering location: ${location}`);
+        if (location.exists()) return location;
+      }
     }
     throw new RequireError(`Failed to locate module: ${id}`);
   }
@@ -192,13 +232,13 @@ declare var load: (_: {name: string, script: string}) => any;
     return loadModule(moduleId, location);
   }
 
-  function createRequire(): Require {
-    var require = <Require>((id: string) => doRequire(id));
-    require.root = java.lang.System.getProperty("user.dir");
-    require.debug = false;
-    require.extensions = [".js", ""];
-    return require;
-  }
+  //function createRequire(): Require {
+  //  var require = <Require>((id: string) => doRequire(id));
+  //  require.root = java.lang.System.getProperty("user.dir");
+  //  require.debug = false;
+  //  require.extensions = [".js", ""];
+  //  return require;
+  //}
 
   // endsWith - also ES6
   function endsWith(str: string, suffix: string): boolean {
@@ -206,7 +246,7 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function debugLog(msg: any): void {
-    if (require.debug) print("[require] " + msg);
+    if (options.debug) print("[require] " + msg);
   }
 
   function ensureExtension(path: string, extension: string): string {
@@ -261,17 +301,55 @@ declare var load: (_: {name: string, script: string}) => any;
       script: wrappedBody
     });
     var module = new ModuleContainer(location);
-    var requireFn = <RequireFunction>((id: string) => doRequire(id, module));
+    var requireFn = createRequireFunction(module);
 
     // Cache before loading so that cyclic dependencies won't be a problem.
     moduleCache[location.name] = module;
 
-    //var moduleFile = newFile(descriptor.path);
-    //var dirName = moduleFile.getParent();
-    //var fileName = moduleFile.getName();
     var exposed = new ExposedModule(module);
     func.apply(module, [exposed["exports"], exposed, requireFn]);
     return module.exports;
+  }
+
+  function init(opts: PublicRequireOptions) {
+    if (!opts.mainFile) throw new Error("Missing main file");
+    var mainFileAsFile = newFile(opts.mainFile);
+    if (!mainFileAsFile.exists()) throw new Error("Main file doesn't exist: " + opts.mainFile);
+    //TODO: join extensions
+
+    // Set the global options
+    options = <RequireOptions>{};
+    options.debug = opts.debug || false;
+    options.extensions = opts.extensions || [".js", ""]; //TODO: combine
+    options.paths = [mainFileAsFile.getParent()]; //TODO: curdir also?
+
+    // Initialize main module
+    //TODO: Reuse wrt loadModule!!
+    var location = new FileSystemBasedModuleLocation(mainFileAsFile);
+    var module = new ModuleContainer(location);
+    var requireFn = createRequireFunction(module);
+
+    moduleCache[location.name] = module; //TODO
+    var exposed = new ExposedModule(module);
+
+    Object.defineProperty(requireFn, "main", {
+      get: () => exposed,
+      set: () => {} // noop
+    });
+
+    global.module = exposed;
+    global.exports = exposed["exports"];
+    global.require = requireFn;
+  }
+
+  function createRequireFunction(parent: ModuleContainer): RequireFunction {
+    var requireFn = <RequireFunction>((id: string) => doRequire(id, parent));
+    //TODO: require.main
+    Object.defineProperty(requireFn, "paths", {
+      get: () => options.paths,
+      set: () => {} // noop
+    });
+    return requireFn;
   }
 
   function newFile(parent: string|java.io.File, child?: string) {

@@ -13,35 +13,42 @@ try {
   // Load require, then require the test program
   //print("--> Loading " + nashornRequireFile);
   load(nashornRequireFile.toString());
+  initRequire({
+    mainFile: programFile, //__FILE__,
+    debug: true
+  });
 
   // Load color support for printing messages
   withRoot(currentDir, function () {
-    ansi = require("./ansi");
+    ansi = require("ansi"); // require as top-level
   });
 
   print("TEST FILE: " + programFile);
   withFailDetectingPrint(function () {
     withRoot(programDirPath, function () {
-      //require.debug = true; //TODO: Set via Jake
-      require("program");
+      load(programFile);
     });
   });
 } catch (e) {
-  if (e.stack && e.stack.indexOf(e.message) >= 0) print(e.stack);
-  else print(e.message);
+  // Print the stack if there is one, otherwise just the message
+  if (e.stack) {
+    // Print the message unless the stack contains it already
+    if (e.stack.indexOf(e.message) < 0)
+      print(e.message);
+    print(e.stack);
+  } else print(e.message);
   throw new Error("Abort");
 } finally {
   // Emit an empty line between test programs to make the output easier to read.
   print("");
 }
 
-function withRoot(root, closure) {
-  var oldRoot = require.root;
-  require.root = root;
+function withRoot(root, fun) {
+  require.paths.push(root);
   try {
-    closure();
+    fun();
   } finally {
-    require.root = oldRoot;
+    require.paths.pop();
   }
 }
 

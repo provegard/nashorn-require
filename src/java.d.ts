@@ -36,9 +36,9 @@ declare namespace java {
       isAbsolute(): boolean
       isDirectory(): boolean
       isFile(): boolean
-      getParent(): String
+      getParent(): string
       getParentFile(): File
-      getName(): String
+      getName(): string
     }
 
     //export var InputStream: InputStream;
