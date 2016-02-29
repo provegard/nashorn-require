@@ -47,19 +47,18 @@ declare var load: (_: {name: string, script: string}) => any;
   interface RequireFunction {
     (id: string): ModuleExports
 
-    /**
-     * TODO: doc
-     */
-    main: ExposedModule;
-
     paths: string[];
   }
 
   interface RequireOptions {
-    //root: string;
     paths: string[];
     extensions: string[];
     debug: boolean;
+
+    /**
+     * A list of module search paths that the user cannot modify.
+     */
+    fixedPaths: string[];
   }
 
   interface PublicRequireOptions {
@@ -202,8 +201,8 @@ declare var load: (_: {name: string, script: string}) => any;
       // Resolve the id against the location of the parent module
       actions.push(mid => parent.location.resolve(mid));
     } else {
-      // Top-level ID, resolve against root
-      options.paths.forEach(root => {
+      // Top-level ID, resolve against the possible roots.
+      unique(options.fixedPaths.concat(options.paths)).forEach(root => {
         var tempLocation = new FileSystemBasedModuleLocation(newFile(root));
         actions.push(mid => tempLocation.resolve(mid));
       });
@@ -310,6 +309,9 @@ declare var load: (_: {name: string, script: string}) => any;
     options.extensions = opts.extensions || [".js", ""]; //TODO: combine
     options.paths = [mainFileAsFile.getParent()]; //TODO: curdir also?
 
+    // Also set the fixed paths. These are not exposed to the outside.
+    options.fixedPaths = [mainFileAsFile.getParent()]; //TODO: curdir also?
+
     // Initialize main module
     //TODO: Reuse wrt loadModule!!
     var location = new FileSystemBasedModuleLocation(mainFileAsFile);
@@ -357,5 +359,13 @@ declare var load: (_: {name: string, script: string}) => any;
     // "negated" by a subsequent ".." part, but Windows is more forgiving. To ensure consistent behavior across
     // system types, we use the canonical path for the final File instance.
     return new java.io.File(file.getCanonicalPath());
+  }
+
+  function unique(items: string[]): string[] {
+    var dict: { [id: string]: boolean; } = {};
+    items.forEach(item => {
+      dict[item] = true;
+    });
+    return Object.keys(dict);
   }
 })(this);
