@@ -11,3 +11,23 @@ exports.assert = function (guard, message) {
     exports.print('FAIL ' + message, 'fail');
   }
 };
+
+exports.assertThrowsWithMessage = function (fun, matcher) {
+  try {
+    fun();
+    exports.print("FAIL - didn't throw", 'fail');
+  } catch (e) {
+    var isOk;
+    if (matcher.test) {
+      // RegExp
+      isOk = matcher.test(e.message);
+    } else {
+      isOk = matcher === e.message;
+    }
+    if (isOk) {
+      exports.print('PASS ' + e.message, 'pass');
+    } else {
+      exports.print('FAIL ' + e.message, 'fail');
+    }
+  }
+};
