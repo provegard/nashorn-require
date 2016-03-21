@@ -5,11 +5,28 @@ const
   exec = require("child_process").exec,
   util = require("util"),
   ansi = require("./ansi"),
-  tests = [];
+  tests = [],
+  maybeProgramFilter = process.argv[2];
+
+function matchesProgramFilter(pathToProgram, fileName) {
+  // If there is no filter, everything matches
+  if (!maybeProgramFilter) return true;
+
+  // Assume the filter is a path to the program directory or the program file. Normalize since we'll compare paths.
+  var filterPath = path.normalize(path.join(process.cwd(), maybeProgramFilter));
+
+  // Create a list of paths where the filter should match at least one. Normalize here as well.
+  var folderPath = path.normalize(pathToProgram);
+  var programFilePath = path.normalize(path.join(pathToProgram, fileName));
+  var candidates = [folderPath, programFilePath];
+
+  return candidates.indexOf(filterPath) >= 0;
+}
 
 function addProgramTest(pathToProgram, fileName) {
   var testName = "Test program: " + path.basename(path.dirname(pathToProgram));
   tests.push(new SingleTest(testName, (next) => {
+    if (!matchesProgramFilter(pathToProgram, fileName)) throw new IgnoredTestProgramError();
     runProgramWithExec(pathToProgram, next);
   }));
 }
@@ -44,12 +61,20 @@ function printFailure(msg) {
   console.log(ansi.brightRed(msg));
 }
 
+function printWarning(msg) {
+  console.log(ansi.brightYellow(msg));
+}
+
 function printTestSuccess(singleTest) {
   printSuccess("\u2713 " + singleTest.name);
 }
 
 function printTestFailure(singleTest) {
   printFailure("\u2717 " + singleTest.name);
+}
+
+function printTestIgnored(singleTest) {
+  printWarning("- " + singleTest.name);
 }
 
 function runNextTest(todoList) {
@@ -66,19 +91,24 @@ function runNextTest(todoList) {
       runNextTest(todoList);
     });
   } catch (e) {
-    printTestFailure(singleTest);
-    singleTest.testFailed(e, new Buffer(0), new Buffer(0));
+    if (e instanceof IgnoredTestProgramError) {
+      printTestIgnored(singleTest);
+      singleTest.testIgnored();
+    } else {
+      printTestFailure(singleTest);
+      singleTest.testFailed(e, new Buffer(0), new Buffer(0));
+    }
     runNextTest(todoList);
   }
 }
 
 function allDone() {
-  //console.log(""); // newline after dots
   console.log("");
 
   const failedTests = tests.filter((test) => { return test.didFail; });
+  const ignoredCount = tests.filter((test) => { return test.ignored; }).length;
 
-  const summary = util.format("%d tests, %d failures", tests.length, failedTests.length);
+  const summary = util.format("%d tests, %d failures, %d ignored", tests.length, failedTests.length, ignoredCount);
   if (failedTests.length) printFailure(summary); else printSuccess(summary);
   failedTests.forEach((failedTest, idx) => {
     console.log("");
@@ -124,10 +154,21 @@ class SingleTest {
     };
   }
 
+  testIgnored() {
+    this.ignored = true;
+  }
+
   get didFail() {
     return !!this.failure;
   }
 }
+
+function IgnoredTestProgramError() {
+  this.name = this.constructor.name;
+  this.message = "Ignored";
+}
+
+util.inherits(IgnoredTestProgramError, Error);
 
 // =========================================== RUN ===========================================
 
