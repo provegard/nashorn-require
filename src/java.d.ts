@@ -1,12 +1,7 @@
-
-//declare var java: typeof __java;
-
-//declare var java: Java.java;
-
 declare namespace java {
   export namespace lang {
     interface System {
-      getProperty(propertyName: string): string
+      getProperty(propertyName: string): string;
     }
     export var System: System;
   }
@@ -17,31 +12,30 @@ declare namespace java {
       close(): void;
     }
     interface BufferedReader extends Reader {
-      new(inner: Reader): BufferedReader
+      new(inner: Reader): BufferedReader;
     }
     interface InputStreamReader extends Reader {
-      new(stream: InputStream): InputStreamReader
+      new(stream: InputStream): InputStreamReader;
     }
     interface FileInputStream extends InputStream {
-      new(file: string|File): FileInputStream
+      new(file: string|File): FileInputStream;
     }
     export interface InputStream {
     }
 
     export interface File {
-      new(parent: string|File, child?: string): File
+      new(parent: string|File, child?: string): File;
 
-      getCanonicalPath(): string
-      exists(): boolean
-      isAbsolute(): boolean
-      isDirectory(): boolean
-      isFile(): boolean
-      getParent(): string
-      getParentFile(): File
-      getName(): string
+      getCanonicalPath(): string;
+      exists(): boolean;
+      isAbsolute(): boolean;
+      isDirectory(): boolean;
+      isFile(): boolean;
+      getParent(): string;
+      getParentFile(): File;
+      getName(): string;
     }
 
-    //export var InputStream: InputStream;
     export var FileInputStream: FileInputStream;
     export var BufferedReader: BufferedReader;
     export var InputStreamReader: InputStreamReader;

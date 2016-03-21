@@ -25,10 +25,10 @@ declare var print: (_: string) => void;
 declare var load: (_: {name: string, script: string}) => any;
 
 ((global: any) => {
-  var LineSeparator = java.lang.System.getProperty("line.separator");
+  const LineSeparator: string = java.lang.System.getProperty("line.separator");
 
-  var moduleCache: { [id: string]: ModuleContainer; } = {};
-  var options: RequireOptions;
+  let moduleCache: { [id: string]: ModuleContainer; } = {};
+  let options: RequireOptions;
 
   /**
    * Initialize nashorn-require. After this function returns, there is a global 'require' function together with
@@ -45,7 +45,7 @@ declare var load: (_: {name: string, script: string}) => any;
   // ----------------------
 
   interface RequireFunction {
-    (id: string): ModuleExports
+    (id: string): ModuleExports;
 
     paths: string[];
   }
@@ -144,7 +144,7 @@ declare var load: (_: {name: string, script: string}) => any;
     cause: any;
 
     toString(): string {
-      var str = this.message;
+      let str = this.message;
       if (this.cause) str = str + " [Caused by: " + this.cause + "]";
       return str;
     }
@@ -156,14 +156,14 @@ declare var load: (_: {name: string, script: string}) => any;
   interface Require extends RequireFunction {
     root: string;
     debug: boolean;
-    extensions: string[]
+    extensions: string[];
   }
 
   interface ModuleLocation {
     getStream(): java.io.InputStream;
     resolve(id: ModuleId): ModuleLocation;
     exists(): boolean;
-    name: string
+    name: string;
   }
   class FileSystemBasedModuleLocation implements ModuleLocation {
     private file: java.io.File;
@@ -179,7 +179,7 @@ declare var load: (_: {name: string, script: string}) => any;
     }
 
     resolve(id: ModuleId) {
-      var parent = this.file.isDirectory() ? this.file : this.file.getParentFile();
+      const parent = this.file.isDirectory() ? this.file : this.file.getParentFile();
       return new FileSystemBasedModuleLocation(newFile(parent, id.id));
     }
 
@@ -193,7 +193,7 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function locateModule(id: ModuleId, parent?: ModuleContainer): ModuleLocation {
-    var actions: ((mid: ModuleId) => ModuleLocation)[] = [];
+    const actions: ((mid: ModuleId) => ModuleLocation)[] = [];
     if (id.isAbsolutePath()) {
       // For an absolute path, just return a file stream provided that the file exists.
       actions.push(mid => new FileSystemBasedModuleLocation(newFile(mid.id)));
@@ -203,15 +203,15 @@ declare var load: (_: {name: string, script: string}) => any;
     } else {
       // Top-level ID, resolve against the possible roots.
       unique(options.fixedPaths.concat(options.paths)).forEach(root => {
-        var tempLocation = new FileSystemBasedModuleLocation(newFile(root));
+        const tempLocation = new FileSystemBasedModuleLocation(newFile(root));
         actions.push(mid => tempLocation.resolve(mid));
       });
     }
-    for (var i: number = 0; i < options.extensions.length; i++) {
-      var ext = options.extensions[i];
-      var newModuleId = new ModuleId(ensureExtension(id.id, ext));
-      for (var j: number = 0; j < actions.length; j++) {
-        var location = actions[j](newModuleId);
+    for (let i: number = 0; i < options.extensions.length; i++) {
+      const ext = options.extensions[i];
+      const newModuleId = new ModuleId(ensureExtension(id.id, ext));
+      for (let j: number = 0; j < actions.length; j++) {
+        const location = actions[j](newModuleId);
         if (!location) continue;
         debugLog(`Considering location: ${location}`);
         if (location.exists()) return location;
@@ -221,8 +221,8 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function doRequire(id: string, parent?: ModuleContainer): ModuleExports {
-    var moduleId = new ModuleId(id);
-    var location = locateModule(moduleId, parent);
+    const moduleId = new ModuleId(id);
+    const location = locateModule(moduleId, parent);
     return loadModule(moduleId, location);
   }
 
@@ -252,12 +252,12 @@ declare var load: (_: {name: string, script: string}) => any;
 
   function readFromStream(stream: java.io.InputStream): string {
     // more or less regular java code except for static types
-    var
+    let
       buf: string = "",
       reader: java.io.Reader;
     try {
       reader = new java.io.BufferedReader(new java.io.InputStreamReader(stream));
-      var line: string;
+      let line: string;
       while ((line = reader.readLine()) !== null) {
         // Make sure to add a line separator (stripped by readLine), so that line numbers are preserved and line
         // comments won't "hide" the remainder of the file.
@@ -272,54 +272,54 @@ declare var load: (_: {name: string, script: string}) => any;
   function loadModule(id: ModuleId, location: ModuleLocation): ModuleExports {
     // Check the cache first. Use the location name since that is suppose to be stable regardless of how the module
     // was requested.
-    var cachedModule = moduleCache[location.name];
+    const cachedModule = moduleCache[location.name];
     if (cachedModule) {
       debugLog(`Using cached module for ${id}`);
       return cachedModule.exports;
     }
 
     debugLog(`Loading module '${id}' from ${location}`);
-    var body = readLocation(location);
-    //TODO: , __filename, __dirname
-    var wrappedBody = `var moduleFunction = function (exports, module, require) {${body}\n}; moduleFunction`;
-    var func = load({
+    const body = readLocation(location);
+    // TODO: , __filename, __dirname
+    const wrappedBody = `var moduleFunction = function (exports, module, require) {${body}\n}; moduleFunction`;
+    const func = load({
       name: location.name,
       script: wrappedBody
     });
-    var module = new ModuleContainer(location);
-    var requireFn = createRequireFunction(module);
+    const module = new ModuleContainer(location);
+    const requireFn = createRequireFunction(module);
 
     // Cache before loading so that cyclic dependencies won't be a problem.
     moduleCache[location.name] = module;
 
-    var exposed = new ExposedModule(module);
+    const exposed = new ExposedModule(module);
     func.apply(module, [exposed["exports"], exposed, requireFn]);
     return module.exports;
   }
 
   function init(opts: PublicRequireOptions) {
     if (!opts.mainFile) throw new Error("Missing main file");
-    var mainFileAsFile = newFile(opts.mainFile);
+    const mainFileAsFile = newFile(opts.mainFile);
     if (!mainFileAsFile.exists()) throw new Error("Main file doesn't exist: " + opts.mainFile);
-    //TODO: join extensions
+    // TODO: join extensions
 
     // Set the global options
     options = <RequireOptions>{};
     options.debug = opts.debug || false;
-    options.extensions = opts.extensions || [".js", ""]; //TODO: combine
-    options.paths = [mainFileAsFile.getParent()]; //TODO: curdir also?
+    options.extensions = opts.extensions || [".js", ""]; // TODO: combine
+    options.paths = [mainFileAsFile.getParent()]; // TODO: curdir also?
 
     // Also set the fixed paths. These are not exposed to the outside.
-    options.fixedPaths = [mainFileAsFile.getParent()]; //TODO: curdir also?
+    options.fixedPaths = [mainFileAsFile.getParent()]; // TODO: curdir also?
 
     // Initialize main module
-    //TODO: Reuse wrt loadModule!!
-    var location = new FileSystemBasedModuleLocation(mainFileAsFile);
-    var module = new ModuleContainer(location);
-    var requireFn = createRequireFunction(module);
+    // TODO: Reuse wrt loadModule!!
+    const location = new FileSystemBasedModuleLocation(mainFileAsFile);
+    const module = new ModuleContainer(location);
+    const requireFn = createRequireFunction(module);
 
-    moduleCache[location.name] = module; //TODO
-    var exposed = new ExposedModule(module);
+    moduleCache[location.name] = module; // TODO
+    const exposed = new ExposedModule(module);
 
     Object.defineProperty(requireFn, "main", {
       get: () => exposed,
@@ -332,8 +332,8 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function createRequireFunction(parent: ModuleContainer): RequireFunction {
-    var requireFn = <RequireFunction>((id: string) => doRequire(id, parent));
-    //TODO: require.main
+    const requireFn = <RequireFunction>((id: string) => doRequire(id, parent));
+    // TODO: require.main
     Object.defineProperty(requireFn, "paths", {
       get: () => options.paths,
       set: () => {} // noop
@@ -342,7 +342,7 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function newFile(parent: string|java.io.File, child?: string) {
-    var file: java.io.File;
+    let file: java.io.File;
 
     if (child) {
       // java.io.File doesn't necessarily recognize an absolute Windows path as an absolute child. Therefore we have
@@ -362,7 +362,7 @@ declare var load: (_: {name: string, script: string}) => any;
   }
 
   function unique(items: string[]): string[] {
-    var dict: { [id: string]: boolean; } = {};
+    const dict: { [id: string]: boolean; } = {};
     items.forEach(item => {
       dict[item] = true;
     });
