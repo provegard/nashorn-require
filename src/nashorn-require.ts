@@ -31,18 +31,6 @@ declare var load: (_: {name: string, script: string}) => any;
   const classLoaderCache: { [id: string]: java.lang.ClassLoader; } = {};
   let options: RequireOptions;
 
-  /**
-   * Initialize nashorn-require. After this function returns, there is a global 'require' function together with
-   * global 'module' and 'exports' objects. The main reason for having manual initialization is that it makes it
-   * possible to determine which file is the main file/program. Consider Node as a comparison - when you run a JS
-   * file with Node, that file is the main file.
-   *
-   * @param opts options for configuring nashorn-require
-   */
-  global.initRequire = function (opts: PublicRequireOptions) {
-    global.initRequire = () => { throw new Error("initRequire cannot be called twice"); };
-    init(opts);
-  };
   // ----------------------
 
   interface RequireFunction {
@@ -383,6 +371,14 @@ declare var load: (_: {name: string, script: string}) => any;
     return module.exports;
   }
 
+  /**
+   * Initialize nashorn-require. After this function returns, there is a global 'require' function together with
+   * global 'module' and 'exports' objects. The main reason for having manual initialization is that it makes it
+   * possible to determine which file is the main file/program. Consider Node as a comparison - when you run a JS
+   * file with Node, that file is the main file.
+   *
+   * @param opts options for configuring nashorn-require
+   */
   function init(opts: PublicRequireOptions) {
     if (!opts.mainFile) throw new Error("Missing main file");
     const mainFileAsFile = newFile(opts.mainFile);
@@ -454,4 +450,15 @@ declare var load: (_: {name: string, script: string}) => any;
     });
     return Object.keys(dict);
   }
+
+  /**
+   * Return the init function to the caller, so that the caller will receive the function from calling load. In other
+   * words, initialization looks something like this:
+   *
+   * `
+   * var initRequire = load(...path...);
+   * initRequire({ ...options... });
+   * `
+   */
+  return init;
 })(this);

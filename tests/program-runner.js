@@ -12,7 +12,7 @@ if (!programFile.exists()) throw new Error("Missing: " + programFile);
 try {
   // Load require, then require the test program
   //print("--> Loading " + nashornRequireFile);
-  load(nashornRequireFile.toString());
+  var initRequire = load(nashornRequireFile.toString());
   initRequire({
     mainFile: programFile, //__FILE__,
     debug: true
