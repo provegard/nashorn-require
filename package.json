@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "testBuild": "jar -cvf dist/package.jar -C test-src embedded/injar.js",
+    "testBuild": "jar -cvf dist/package.jar -C test-src embedded/",
     "test": "node tests/programs_spec.es6",
     "build": "node_modules/.bin/tsc",
     "lint": "node_modules/.bin/tslint src/*.ts",
