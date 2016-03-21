@@ -8,7 +8,7 @@ const
   tests = [],
   maybeProgramFilter = process.argv[2];
 
-function matchesProgramFilter(pathToProgram, fileName) {
+function matchesProgramFilter(pathToProgram, dir, fileName) {
   // If there is no filter, everything matches
   if (!maybeProgramFilter) return true;
 
@@ -16,17 +16,17 @@ function matchesProgramFilter(pathToProgram, fileName) {
   var filterPath = path.normalize(path.join(process.cwd(), maybeProgramFilter));
 
   // Create a list of paths where the filter should match at least one. Normalize here as well.
-  var folderPath = path.normalize(pathToProgram);
-  var programFilePath = path.normalize(path.join(pathToProgram, fileName));
+  var folderPath = path.normalize(dir);
+  var programFilePath = path.normalize(pathToProgram);
   var candidates = [folderPath, programFilePath];
 
   return candidates.indexOf(filterPath) >= 0;
 }
 
-function addProgramTest(pathToProgram, fileName) {
+function addProgramTest(pathToProgram, dir, fileName) {
   var testName = "Test program: " + path.basename(path.dirname(pathToProgram));
   tests.push(new SingleTest(testName, (next) => {
-    if (!matchesProgramFilter(pathToProgram, fileName)) throw new IgnoredTestProgramError();
+    if (!matchesProgramFilter(pathToProgram, dir, fileName)) throw new IgnoredTestProgramError();
     runProgramWithExec(pathToProgram, next);
   }));
 }
@@ -184,7 +184,7 @@ var programDirs = ["commonjs/tests/modules", "tests/commonjs-missing", "tests/co
 programDirs.forEach((programDir) => {
   walkDirSync(programDir, (fullPath, dir, file) => {
     if (file !== "program.js") return;
-    addProgramTest(fullPath, file);
+    addProgramTest(fullPath, dir, file);
   });
 });
 
