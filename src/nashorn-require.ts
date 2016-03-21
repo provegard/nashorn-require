@@ -265,24 +265,31 @@ declare var load: (_: {name: string, script: string}) => any;
     }
   }
 
+  function getModuleLocationForPath(path: string): ModuleLocation {
+    let dotJarBang: number;
+    if (path.lastIndexOf(".jar") === path.length - 4) {
+      return new ResourceBasedModuleLocation(newFile(path));
+    } else if ((dotJarBang = path.indexOf(".jar!")) >= 0) {
+      const jarPath = path.substr(0, dotJarBang + 4); // exclude the bang
+      const resourcePath = path.substr(dotJarBang + 5); // after the bang
+      return getModuleLocationForPath(jarPath).resolve(new ModuleId(resourcePath));
+    }
+    return new FileSystemBasedModuleLocation(newFile(path));
+  }
+
   function locateModule(id: ModuleId, parent?: ModuleContainer): ModuleLocation {
     const actions: ((mid: ModuleId) => ModuleLocation)[] = [];
     if (id.isAbsolutePath()) {
-      // For an absolute path, just return a file stream provided that the file exists.
-      actions.push(mid => new FileSystemBasedModuleLocation(newFile(mid.id)));
+      // For an absolute path, return the location for that path
+      actions.push(mid => getModuleLocationForPath(mid.id));
     } else if (id.isRelative() && parent) {
       // Resolve the id against the location of the parent module
       actions.push(mid => parent.location.resolve(mid));
     } else {
       // Top-level ID, resolve against the possible roots.
       unique(options.fixedPaths.concat(options.paths)).forEach(root => {
-        let tempLocation: ModuleLocation;
-        if (root.lastIndexOf(".jar") === root.length - 4) {
-          tempLocation = new ResourceBasedModuleLocation(newFile(root));
-        } else {
-          tempLocation = new FileSystemBasedModuleLocation(newFile(root));
-        }
-        actions.push(mid => tempLocation.resolve(mid));
+        let rootLocation = getModuleLocationForPath(root);
+        actions.push(mid => rootLocation.resolve(mid));
       });
     }
     for (let i: number = 0; i < options.extensions.length; i++) {
