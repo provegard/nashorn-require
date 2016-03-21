@@ -49,7 +49,6 @@ function walkDirSync(dir, callback) {
 
 function runTests() {
   console.log("Running tests");
-  if (tests.length === 0) throw new Error("No tests :-(");
   runNextTest(tests.concat());
 }
 
@@ -107,9 +106,12 @@ function allDone() {
 
   const failedTests = tests.filter((test) => { return test.didFail; });
   const ignoredCount = tests.filter((test) => { return test.ignored; }).length;
+  const runTests = tests.length - ignoredCount;
 
   const summary = util.format("%d tests, %d failures, %d ignored", tests.length, failedTests.length, ignoredCount);
-  if (failedTests.length) printFailure(summary); else printSuccess(summary);
+  const didFail = failedTests.length || runTests === 0;
+  if (didFail) printFailure(summary); else printSuccess(summary);
+
   failedTests.forEach((failedTest, idx) => {
     console.log("");
     console.log(util.format("  %d) %s", idx + 1, failedTest.name));
@@ -127,6 +129,11 @@ function allDone() {
       console.log(indent(failedTest.failure.stderr.toString(), 6));
     }
   });
+
+  if (runTests === 0) {
+    printFailure("No tests run at all :-(");
+    process.exit(1);
+  }
 
   process.exit(failedTests.length);
 }
