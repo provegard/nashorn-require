@@ -27,6 +27,7 @@
   "devDependencies": {
     "jake": "^8.0.12",
     "jake-jshint": "0.0.4",
+    "tslint": "^3.6.0",
     "typescript": "^1.8.9"
   }
 }
