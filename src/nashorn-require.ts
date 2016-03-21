@@ -206,21 +206,28 @@ declare var load: (_: {name: string, script: string}) => any;
     if (cachedLoader) return cachedLoader;
     return classLoaderCache[id] = new java.net.URLClassLoader([url]);
   }
+  function reject<T>(message: string): T {
+    throw new Error(message);
+  }
 
   class ResourceBasedModuleLocation implements ModuleLocation {
     private classLoader: java.lang.ClassLoader;
     private resourcePath: string;
+    private basePath: string;
     name: string;
 
-    constructor(jarFileOrClassLoader: java.io.File|java.lang.ClassLoader, maybeResourcePath?: string) {
+    constructor(jarFileOrClassLoader: java.io.File|java.lang.ClassLoader, maybeResourcePath?: string, basePath?: string) {
       if (isFile(jarFileOrClassLoader)) {
-        this.resourcePath = maybeResourcePath;
+        if (maybeResourcePath || basePath) throw new Error("Multiple arguments passed to ResourceBasedModuleLocation(java.io.File)");
+        this.resourcePath = null;
         this.classLoader = getOrCreateClassLoader(jarFileOrClassLoader);
-        this.name = jarFileOrClassLoader.toString() + "!";
+        this.basePath = jarFileOrClassLoader.toString() + "!";
+        this.name = this.basePath;
       } else if (isClassLoader(jarFileOrClassLoader)) {
         this.classLoader = jarFileOrClassLoader;
-        this.resourcePath = maybeResourcePath;
-        this.name = "TODO";
+        this.resourcePath = maybeResourcePath || reject<string>("ResourceBasedModuleLocation needs a base path");
+        this.basePath = basePath || reject<string>("ResourceBasedModuleLocation needs a base path");
+        this.name = basePath + maybeResourcePath;
       } else throw new Error("Unknown ResourceBasedModuleLocation argument: " + jarFileOrClassLoader);
     }
 
@@ -231,11 +238,15 @@ declare var load: (_: {name: string, script: string}) => any;
 
     resolve(id: ModuleId) {
       if (this.resourcePath) {
-        const pathAsFile = new java.io.File(this.resourcePath);
-        const newPathAsFile = new java.io.File(pathAsFile, id.id);
-        return new ResourceBasedModuleLocation(this.classLoader, newPathAsFile.toString());
+        // Treat the current resource path as a file, so get its "directory parent". Note that embedded resources use
+        // forward slash as directory separator at all times, so some manual handling here.
+        const directoryPart = new java.io.File(this.resourcePath).getParent().replace(/\\/g, "/");
+        // We know that the module ID is relative (otherwise we would be a top-level location and have no resource path),
+        // so we can safely strip off the leading dot of the ID.
+        const newResourcePath = directoryPart + id.id.substr(1);
+        return new ResourceBasedModuleLocation(this.classLoader, newResourcePath, this.basePath);
       }
-      return new ResourceBasedModuleLocation(this.classLoader, id.id);
+      return new ResourceBasedModuleLocation(this.classLoader, id.id, this.basePath);
     }
 
     exists() {
@@ -280,7 +291,7 @@ declare var load: (_: {name: string, script: string}) => any;
       for (let j: number = 0; j < actions.length; j++) {
         const location = actions[j](newModuleId);
         if (!location) continue;
-        debugLog(`Considering location: ${location}`);
+        debugLog(`Considering location ${location} for module ${id}`);
         if (location.exists()) return location;
       }
     }

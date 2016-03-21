@@ -45,6 +45,7 @@ declare namespace java {
       isFile(): boolean;
       getParent(): string;
       getParentFile(): File;
+      getCanonicalPath(): string;
       getName(): string;
       toURI(): net.URI;
 
