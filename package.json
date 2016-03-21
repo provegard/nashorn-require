@@ -7,7 +7,12 @@
     "test": "test"
   },
   "scripts": {
-    "test": "jake test"
+    "test": "node tests/programs_spec.es6",
+    "build": "node_modules/.bin/tsc",
+    "lint": "node_modules/.bin/tslint src/*.ts",
+
+    "pretest": "npm run lint",
+    "prelint": "npm run build"
   },
   "repository": {
     "type": "git",
