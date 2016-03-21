@@ -92,7 +92,7 @@ declare var load: (_: {name: string, script: string}) => any;
       // relative. By using the name of the location, which is an absolute path in the file system case, we get a stable
       // identifier. The only downside is that it's technically not a "top-level id", which the spec talks about.
       Object.defineProperty(this, "id", {
-        get: () => container.location.name
+        get: () => <any>container.location.name
       });
 
       // The exports property is has a setter so that a module can assign to module.exports, e.g. to let the exported
@@ -192,6 +192,61 @@ declare var load: (_: {name: string, script: string}) => any;
     }
   }
 
+  function isFile(x: any): x is java.io.File {
+    return java.io.File.class.isInstance(x);
+  }
+  function isClassLoader(x: any): x is java.lang.ClassLoader {
+    return java.lang.ClassLoader.class.isInstance(x);
+  }
+
+  class ResourceBasedModuleLocation implements ModuleLocation {
+    private classLoader: java.lang.ClassLoader;
+    private resourcePath: string;
+    name: string;
+
+    constructor(jarFileOrClassLoader: java.io.File|java.lang.ClassLoader, maybeResourcePath?: string) {
+      if (isFile(jarFileOrClassLoader)) {
+        this.resourcePath = maybeResourcePath;
+        // TODO: Reuse the class loader!
+        this.classLoader = new java.net.URLClassLoader([jarFileOrClassLoader.toURI().toURL()]);
+        this.name = jarFileOrClassLoader.toString() + "!";
+      } else if (isClassLoader(jarFileOrClassLoader)) {
+        this.classLoader = jarFileOrClassLoader;
+        this.resourcePath = maybeResourcePath;
+        this.name = "TODO";
+      } else throw new Error("Unknown ResourceBasedModuleLocation argument: " + jarFileOrClassLoader);
+    }
+
+    getStream() {
+      if (!this.resourcePath) return null;
+      return this.classLoader.getResourceAsStream(this.resourcePath);
+    }
+
+    resolve(id: ModuleId) {
+      if (this.resourcePath) {
+        const pathAsFile = new java.io.File(this.resourcePath);
+        const newPathAsFile = new java.io.File(pathAsFile, id.id);
+        return new ResourceBasedModuleLocation(this.classLoader, newPathAsFile.toString());
+      }
+      return new ResourceBasedModuleLocation(this.classLoader, id.id);
+    }
+
+    exists() {
+      if (!this.resourcePath) return false;
+      let stream: java.io.InputStream;
+      try {
+        stream = this.getStream();
+        return !!stream;
+      } finally {
+        stream.close();
+      }
+    }
+
+    toString() {
+      return "resource " + this.name;
+    }
+  }
+
   function locateModule(id: ModuleId, parent?: ModuleContainer): ModuleLocation {
     const actions: ((mid: ModuleId) => ModuleLocation)[] = [];
     if (id.isAbsolutePath()) {
@@ -203,7 +258,12 @@ declare var load: (_: {name: string, script: string}) => any;
     } else {
       // Top-level ID, resolve against the possible roots.
       unique(options.fixedPaths.concat(options.paths)).forEach(root => {
-        const tempLocation = new FileSystemBasedModuleLocation(newFile(root));
+        let tempLocation: ModuleLocation;
+        if (root.lastIndexOf(".jar") === root.length - 4) {
+          tempLocation = new ResourceBasedModuleLocation(newFile(root));
+        } else {
+          tempLocation = new FileSystemBasedModuleLocation(newFile(root));
+        }
         actions.push(mid => tempLocation.resolve(mid));
       });
     }

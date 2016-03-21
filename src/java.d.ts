@@ -3,7 +3,18 @@ declare namespace java {
     interface System {
       getProperty(propertyName: string): string;
     }
+    export interface Class {
+      isInstance(x: any): boolean;
+    }
+    export interface ClassLoader {
+      new(): ClassLoader;
+      getResourceAsStream(name: string): io.InputStream;
+
+      "class": java.lang.Class;
+    }
     export var System: System;
+    export var Class: Class;
+    export var ClassLoader: ClassLoader;
   }
 
   export namespace io {
@@ -21,6 +32,7 @@ declare namespace java {
       new(file: string|File): FileInputStream;
     }
     export interface InputStream {
+      close(): void;
     }
 
     export interface File {
@@ -34,11 +46,29 @@ declare namespace java {
       getParent(): string;
       getParentFile(): File;
       getName(): string;
+      toURI(): net.URI;
+
+      "class": java.lang.Class;
     }
 
     export var FileInputStream: FileInputStream;
     export var BufferedReader: BufferedReader;
     export var InputStreamReader: InputStreamReader;
     export var File: File;
+  }
+
+  export namespace net {
+    export interface URL {
+    }
+    export interface URI {
+      toURL(): URL;
+    }
+    export interface URLClassLoader extends lang.ClassLoader {
+      new(urls: URL[]): URLClassLoader;
+    }
+
+    export var URLClassLoader: URLClassLoader;
+    export var URL: URL;
+    export var URI: URI;
   }
 }
