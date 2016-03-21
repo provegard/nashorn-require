@@ -267,9 +267,10 @@ declare var load: (_: {name: string, script: string}) => any;
 
   function getModuleLocationForPath(path: string): ModuleLocation {
     let dotJarBang: number;
-    if (path.lastIndexOf(".jar") === path.length - 4) {
+    let lowerPath = path.toLowerCase();
+    if (lowerPath.lastIndexOf(".jar") === path.length - 4) {
       return new ResourceBasedModuleLocation(newFile(path));
-    } else if ((dotJarBang = path.indexOf(".jar!")) >= 0) {
+    } else if ((dotJarBang = lowerPath.indexOf(".jar!")) >= 0) {
       const jarPath = path.substr(0, dotJarBang + 4); // exclude the bang
       const resourcePath = path.substr(dotJarBang + 5); // after the bang
       return getModuleLocationForPath(jarPath).resolve(new ModuleId(resourcePath));
