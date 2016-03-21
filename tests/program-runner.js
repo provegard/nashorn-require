@@ -70,7 +70,7 @@ function createPrintWithFailureDetection(oldPrint) {
   var printFun = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var msg = args.join(" ");
-    if (msg.toString().toLowerCase().indexOf("fail") >= 0) {
+    if (msg.toString().toLowerCase().indexOf("fail") === 0) {
       // Collect failures - to be acted upon after the test run for the program is finished.
       // This means that all failures are printed, *then* there will be a stopping failure.
       printFun.failures.push(msg);
