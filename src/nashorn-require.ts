@@ -27,7 +27,8 @@ declare var load: (_: {name: string, script: string}) => any;
 ((global: any) => {
   const LineSeparator: string = java.lang.System.getProperty("line.separator");
 
-  let moduleCache: { [id: string]: ModuleContainer; } = {};
+  const moduleCache: { [id: string]: ModuleContainer; } = {};
+  const classLoaderCache: { [id: string]: java.lang.ClassLoader; } = {};
   let options: RequireOptions;
 
   /**
@@ -198,6 +199,13 @@ declare var load: (_: {name: string, script: string}) => any;
   function isClassLoader(x: any): x is java.lang.ClassLoader {
     return java.lang.ClassLoader.class.isInstance(x);
   }
+  function getOrCreateClassLoader(file: java.io.File): java.lang.ClassLoader {
+    const url = file.toURI().toURL();
+    const id = url.toString();
+    const cachedLoader = classLoaderCache[id];
+    if (cachedLoader) return cachedLoader;
+    return classLoaderCache[id] = new java.net.URLClassLoader([url]);
+  }
 
   class ResourceBasedModuleLocation implements ModuleLocation {
     private classLoader: java.lang.ClassLoader;
@@ -207,8 +215,7 @@ declare var load: (_: {name: string, script: string}) => any;
     constructor(jarFileOrClassLoader: java.io.File|java.lang.ClassLoader, maybeResourcePath?: string) {
       if (isFile(jarFileOrClassLoader)) {
         this.resourcePath = maybeResourcePath;
-        // TODO: Reuse the class loader!
-        this.classLoader = new java.net.URLClassLoader([jarFileOrClassLoader.toURI().toURL()]);
+        this.classLoader = getOrCreateClassLoader(jarFileOrClassLoader);
         this.name = jarFileOrClassLoader.toString() + "!";
       } else if (isClassLoader(jarFileOrClassLoader)) {
         this.classLoader = jarFileOrClassLoader;
