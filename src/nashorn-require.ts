@@ -238,7 +238,7 @@ declare var load: (_: {name: string, script: string}) => any;
         stream = this.getStream();
         return !!stream;
       } finally {
-        stream.close();
+        if (stream) stream.close();
       }
     }
 
