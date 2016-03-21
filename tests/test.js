@@ -12,6 +12,14 @@ exports.assert = function (guard, message) {
   }
 };
 
+exports.assertEq = function (a, b, message) {
+  if (a === b) {
+    exports.print('PASS ' + message, 'pass');
+  } else {
+    exports.print('FAIL (' + a + ') !== (' + b + ') - ' + message, 'fail');
+  }
+};
+
 exports.assertThrowsWithMessage = function (fun, matcher) {
   try {
     fun();
