@@ -12,15 +12,8 @@ function matchesProgramFilter(pathToProgram, dir, fileName) {
   // If there is no filter, everything matches
   if (!maybeProgramFilter) return true;
 
-  // Assume the filter is a path to the program directory or the program file. Normalize since we'll compare paths.
-  var filterPath = path.normalize(path.join(process.cwd(), maybeProgramFilter));
-
-  // Create a list of paths where the filter should match at least one. Normalize here as well.
-  var folderPath = path.normalize(dir);
-  var programFilePath = path.normalize(pathToProgram);
-  var candidates = [folderPath, programFilePath];
-
-  return candidates.indexOf(filterPath) >= 0;
+   var programFilePath = path.normalize(pathToProgram);
+  return programFilePath.indexOf(maybeProgramFilter) >= 0;
 }
 
 function addProgramTest(pathToProgram, dir, fileName) {
