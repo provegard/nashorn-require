@@ -9,14 +9,28 @@ var programDirPath = programFile.getParent();
 
 if (!programFile.exists()) throw new Error("Missing: " + programFile);
 
+var optionsJs = programDirPath + "/options.js";
+
 try {
+  var loadedOptions = {};
+  if (new java.io.File(optionsJs).exists()) {
+    load(optionsJs);
+    loadedOptions = this.options; // as load doesn't return anything of value
+    if (!loadedOptions) throw new Error("Failed to load options from " + optionsJs);
+  }
+
   // Load require, then require the test program
   //print("--> Loading " + nashornRequireFile);
   var initRequire = load(nashornRequireFile.toString());
-  initRequire({
+  var initOpts = {
     mainFile: programFile, //__FILE__,
     debug: true
-  });
+  };
+  // Add loaded options
+  for (var k in loadedOptions) {
+    initOpts[k] = loadedOptions[k];
+  }
+  initRequire(initOpts);
 
   // Load color support for printing messages
   withRoot(currentDir, function () {

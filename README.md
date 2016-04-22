@@ -41,6 +41,7 @@ The following options are recognized:
 * `mainFile` (**required**) - the path to the main module of the application. This is the module for which `require.main` doesn't return `undefined`. Its parent directory is used as the initial top-level path (against which to resolve non-relative module paths).
 * `extensions` - list of extensions to search when a module is required. Defaults to `['.js', '']`, which means that a module required without extension may exist without the extension or with a ".js" extensions. Note that currently specifying this option will overwrite the default list.
 * `debug` - set to `true` to enable debug output.
+* `classLoader` - an optional class loader that will be used for loading a top-level resource module if it's not found in any of the fixed or user-defined module paths.
 
 ### Additional configuration
 

@@ -26,7 +26,9 @@ function addProgramTest(pathToProgram, dir, fileName) {
 
 function runProgramWithExec(pathToProgram, next) {
   if (typeof next !== "function") throw new Error("runProgramWithExec: no 'next' function");
-  const cmd = "jjs tests/program-runner.js -- \"" + pathToProgram + "\"";
+  // Include a test JAR on the classpath so that we can test resource loading via an existing class loader.
+  var classPath = ["dist\\forcp.jar"].join(path.delimiter);
+  const cmd = "jjs -cp " + classPath + " tests/program-runner.js -- \"" + pathToProgram + "\"";
   exec(cmd, next);
 }
 

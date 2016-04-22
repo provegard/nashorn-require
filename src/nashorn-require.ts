@@ -43,6 +43,7 @@ declare var load: (_: {name: string, script: string}) => any;
     paths: string[];
     extensions: string[];
     debug: boolean;
+    classLoader: java.lang.ClassLoader;
 
     /**
      * A list of module search paths that the user cannot modify.
@@ -50,10 +51,14 @@ declare var load: (_: {name: string, script: string}) => any;
     fixedPaths: string[];
   }
 
+  /**
+   * The options pass to init from the loading script.
+   */
   interface PublicRequireOptions {
     mainFile: string;
     extensions: string[];
     debug: boolean;
+    classLoader: java.lang.ClassLoader;
   }
 
   class ModuleContainer {
@@ -213,14 +218,15 @@ declare var load: (_: {name: string, script: string}) => any;
         this.name = this.basePath;
       } else if (isClassLoader(jarFileOrClassLoader)) {
         this.classLoader = jarFileOrClassLoader;
-        this.resourcePath = maybeResourcePath || reject<string>("ResourceBasedModuleLocation needs a base path");
-        this.basePath = basePath || reject<string>("ResourceBasedModuleLocation needs a base path");
+        this.resourcePath = maybeResourcePath;
+        this.basePath = basePath || "!";
         this.name = basePath + maybeResourcePath;
       } else throw new Error("Unknown ResourceBasedModuleLocation argument: " + jarFileOrClassLoader);
     }
 
     getStream() {
       if (!this.resourcePath) return null;
+      print("getting resource as stream: " + this.resourcePath);
       return this.classLoader.getResourceAsStream(this.resourcePath);
     }
 
@@ -280,6 +286,13 @@ declare var load: (_: {name: string, script: string}) => any;
         let rootLocation = getModuleLocationForPath(root);
         actions.push(mid => rootLocation.resolve(mid));
       });
+
+      // If we have a global classloader, try that one as well. This is done *after* all the fixed and user-configured
+      // paths, so that it's possible to override the loading process.
+      if (options.classLoader) {
+        let clLocation = new ResourceBasedModuleLocation(options.classLoader);
+        actions.push(mid => clLocation.resolve(mid));
+      }
     }
     for (let i: number = 0; i < options.extensions.length; i++) {
       const ext = options.extensions[i];
@@ -287,7 +300,7 @@ declare var load: (_: {name: string, script: string}) => any;
       for (let j: number = 0; j < actions.length; j++) {
         const location = actions[j](newModuleId);
         if (!location) continue;
-        debugLog(`Considering location ${location} for module ${id}`);
+        debugLog(`Considering location (${location}) for module ${id}`);
         if (location.exists()) return location;
       }
     }
@@ -390,6 +403,7 @@ declare var load: (_: {name: string, script: string}) => any;
     options.debug = opts.debug || false;
     options.extensions = opts.extensions || [".js", ""]; // TODO: combine
     options.paths = [mainFileAsFile.getParent()]; // TODO: curdir also?
+    options.classLoader = opts.classLoader;
 
     // Also set the fixed paths. These are not exposed to the outside.
     options.fixedPaths = [mainFileAsFile.getParent()]; // TODO: curdir also?
