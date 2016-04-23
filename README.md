@@ -20,19 +20,22 @@ TBD
 
 ## How to use
 
+Build the JS file:
+
+    $ npm install .
+    $ npm run build
+
 Make the `nashorn-require.js` file available somewhere for your code to access.
 
 Invoke the following Nashorn code:
 
-```
-var nashornRequirePath = ...; // you're on your own here
+    var nashornRequirePath = ...; // you're on your own here
 
-var nashornRequireOptions = {}; // see below
+    var nashornRequireOptions = {}; // see below
 
-var initRequire = load(nashornRequirePath);
+    var initRequire = load(nashornRequirePath);
 
-initRequire(nashornRequireOptions);
-```
+    initRequire(nashornRequireOptions);
 
 ### Options
 
